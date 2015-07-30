@@ -1,0 +1,133 @@
+<?php
+
+#############################
+####  File class_xml.php
+#############################
+
+
+class xml
+{
+    public $file;
+    public $xmlParse;
+    public $results = array();
+    public $countChild = 1;
+
+    public $element;
+    public $attribute;
+
+    public function __construct($file) {
+        $this->file = $file;
+        $xml = new XMLReader();
+        $xml->open($this->file);
+        $this->xmlParse = $this->xml2assoc($xml);
+        $this->parse();
+        $xml->close();
+    }
+    public function changerElement($element,$attribute)
+    {
+        $this->res = '';
+        $this->element = $element;
+        $this->attribute = $attribute;
+        $this->parse();
+    }
+    public function parse($elementArray = 'none')
+    {
+        if($elementArray == 'none'){$array = $this->xmlParse;}
+        else{$array = $elementArray;}
+        foreach($array as $key => $val)
+        {
+              if(is_array($val))
+              {
+                  $re = explode('_',$key);
+                  if($re[0] == 'item')
+                  {
+                      $this->element = $re[0];
+                  }
+                   $this->parse($val);
+              }
+              else
+              {
+                  if($this->element == 'item')
+                  {
+                      $this->results[$key][] = $val;
+                      $this->countChild++;
+                  }
+              }
+
+        }
+
+    }
+    public function values()
+    {
+        return (object)$this->results;
+
+    }
+
+    protected function xml2assoc($xml)
+    {
+        $tree = null;
+        $i = 0;
+        $w = 0;
+        while($xml->read())
+        {
+
+            if($xml->nodeType == XMLReader::END_ELEMENT)
+            {
+                return $tree;
+            }
+            else if($xml->nodeType == XMLReader::ELEMENT)
+            {
+                $node = $xml->name;
+                $nodes = array();
+                $attr = false;
+
+                if($xml->hasAttributes)
+                {
+
+                    while($xml->moveToNextAttribute())
+                    {
+                        $nodes[$xml->name] = $xml->value;
+                        if ($xml->moveToNextAttribute()==1) break;
+
+                    }
+                    $attr = true;
+                }
+                if(!$xml->isEmptyElement)
+                {
+                    if($attr){
+                        $nodes['value'] = $this->xml2assoc($xml);
+                            $arNote = $node.'_'.$w;
+                        $tree[$node][] = $nodes;
+                        $attr = false;
+                        $w++;
+                    }
+                    else
+                    {
+                        $nodes = $this->xml2assoc($xml);
+                        if(is_array($nodes) && $node != 'gamedealer')
+                        {
+                            $elNote = $node.'_'.$i;
+                            $tree[$elNote] = $nodes;
+                            $i++;
+                        }
+                        else{
+                            $tree[$node] = $nodes;
+                        }
+                    }
+                }
+            }
+            else if($xml->nodeType == XMLReader::TEXT)
+            {
+                if($xml->name != '#text')
+                {
+                    $tree[$xml->name][] = $xml->value;
+                }
+                else
+                {
+                    $tree = $xml->value;
+                }
+            }
+        }
+        return $tree;
+    }
+}
